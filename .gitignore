@@ -1,0 +1,28 @@
+.playwright-mcp/
+analise.md
+
+# dados brutos do TSE (GBs; baixar de novo do portal de dados abertos)
+*.zip
+secao/
+locais/
+detalhe/
+votacao_partido_munzona_*/
+
+# saídas geradas por analise_secoes.py (CSV passa do limite de 100 MB do GitHub)
+resultado_secoes_*.csv
+resumo_padroes_voto.xlsx
+mapa/dados.js
+mapa/index.html
+mapa/estados_raw.geojson
+
+# Python / uv
+__pycache__/
+.venv/
+*.pyc
+
+# sistema / editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+~$*

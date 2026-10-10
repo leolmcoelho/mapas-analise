@@ -2,13 +2,35 @@
 # dependencies = ["duckdb", "pandas", "openpyxl"]
 # ///
 """Cruza votação presidencial por seção: 2018 (Haddad x Bolsonaro), 2022 (Lula x Bolsonaro), 2026 (1º turno).
-Uso: uv run analise_secoes.py
+Uso: uv run analise_secoes.py   (na primeira vez baixa ~2 GB do portal de dados abertos do TSE)
 """
+import os
+import urllib.request
+import zipfile
+
 import duckdb
 
 SRC = "secao/{y}/votacao_secao_{y}_BR.csv"
 # número do candidato da direita em cada ano (PT é sempre 13)
 DIREITA = {2018: 17, 2022: 22, 2026: 22}
+
+# arquivos do TSE usados: destino local -> (zip no CDN, arquivo dentro do zip)
+TSE = "https://cdn.tse.jus.br/estatistica/sead/odsele/"
+ARQUIVOS = {
+    **{SRC.format(y=y): (f"votacao_secao/votacao_secao_{y}_BR.zip", f"votacao_secao_{y}_BR.csv") for y in DIREITA},
+    **{f"detalhe/{y}/detalhe_votacao_secao_{y}_BR.csv": (f"detalhe_votacao_secao/detalhe_votacao_secao_{y}.zip", f"detalhe_votacao_secao_{y}_BR.csv") for y in DIREITA},
+    "locais/eleitorado_local_votacao_2026_BRASIL.csv": ("eleitorado_locais_votacao/eleitorado_local_votacao_2026.zip", "eleitorado_local_votacao_2026_BRASIL.csv"),
+}
+for destino, (url, membro) in ARQUIVOS.items():
+    if os.path.exists(destino):
+        continue
+    os.makedirs(os.path.dirname(destino), exist_ok=True)
+    print("baixando", TSE + url)
+    tmp, _ = urllib.request.urlretrieve(TSE + url)
+    with zipfile.ZipFile(tmp) as z, z.open(membro) as src, open(destino, "wb") as dst:
+        while bloco := src.read(1 << 20):
+            dst.write(bloco)
+    os.remove(tmp)
 
 con = duckdb.connect()
 
@@ -193,7 +215,16 @@ GROUP BY uf, cd_mun, municipio, zona, nr_local
 ufs, muns, bairros, regs, macros = {}, {}, {}, {}, {}
 idx = lambda d, k: d.setdefault(k, len(d))
 rows = [[r[4], r[5], idx(ufs, r[0]), idx(muns, r[1]), idx(bairros, r[2]), r[3]] + [None if v is None else int(v) for v in r[6:16]] + [idx(regs, r[16]), idx(macros, r[17])] + [int(v) for v in r[18:24]] for r in locs]
+# mapa/ é um clone de github.com/leolmcoelho/mapa-virada (o site no GitHub Pages)
+if not os.path.isdir("mapa"):
+    print("pasta mapa/ ausente: clone o repositório mapa-virada nela para gerar o mapa")
+    raise SystemExit
 with open("mapa/dados.js", "w", encoding="utf-8") as f:
     j = lambda o: json.dumps(o, ensure_ascii=False, separators=(",", ":"))
     f.write(f"const UFS={j(list(ufs))};\nconst MUNS={j(list(muns))};\nconst BAIRROS={j(list(bairros))};\nconst REGS={j(list(regs))};\nconst MACROS={j(list(macros))};\nconst LOCAIS={j(rows)};\n")
+# index.html = template + contorno dos estados embutido
+with open("mapa/mapa_template.html", encoding="utf-8") as t, open("mapa/estados.geojson", encoding="utf-8") as g:
+    html = t.read().replace("__ESTADOS__", " ".join(g.read().split()))
+with open("mapa/index.html", "w", encoding="utf-8") as f:
+    f.write(html)
 print("locais no mapa:", len(rows))

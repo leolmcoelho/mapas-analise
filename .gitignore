@@ -8,12 +8,11 @@ locais/
 detalhe/
 votacao_partido_munzona_*/
 
-# saídas geradas por analise_secoes.py (CSV passa do limite de 100 MB do GitHub)
+# CSV por seção: passa do limite de 100 MB do GitHub, vai como Release
 resultado_secoes_*.csv
-resumo_padroes_voto.xlsx
-mapa/dados.js
-mapa/index.html
-mapa/estados_raw.geojson
+
+# mapa/ é um clone do repositório público mapa-virada (GitHub Pages)
+mapa/
 
 # Python / uv
 __pycache__/
